@@ -9,7 +9,7 @@ Z. Yu, M. Zhu, M. Trapp, A. Skryagin, K. Kersting,
 This will clone the repo, install a python virtual env (requires pythn 3.6), the required packages, and will download some datasets.
 
     git clone https://github.com/minimrbanana/MOMoGP
-    ./setup/sh
+    ./setup.sh
 
 # Demos
 To illustrate the usage of the code:
