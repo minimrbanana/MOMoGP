@@ -29,24 +29,35 @@ torch.cuda.manual_seed(23)
 
 
 # load data
-x_train = pd.read_csv('./data/Parkinsons/x_train.csv')
-x_test = pd.read_csv('./data/Parkinsons/x_test.csv')
-y_train = pd.read_csv('./data/Parkinsons/y_train.csv')
-y_test = pd.read_csv('./data/Parkinsons/y_test.csv')
+d_input = 32
+data = pd.read_csv('/home/mzhu/madesi/mzhu_code/WECs_DataSet/Adelaide_Data.csv')
+data = pd.DataFrame(data).dropna()
+train = data.sample(frac=0.8, random_state=58)
+test = data.drop(train.index)
+x_train, y_train = train.iloc[:, :d_input].values, train.iloc[:, d_input:].values
+y_d = y_train.shape[1]
+x_test, y_test = test.iloc[:, :d_input].values, test.iloc[:, d_input:].values
+#x_train = pd.read_csv('./data/Parkinsons/x_train.csv')
+#x_test = pd.read_csv('./data/Parkinsons/x_test.csv')
+#y_train = pd.read_csv('./data/Parkinsons/y_train.csv')
+#y_test = pd.read_csv('./data/Parkinsons/y_test.csv')
 print('training data shape:', x_train.shape)
 print('test data shape:', x_test.shape)
 
 # normalise data
-mu_x,std_x = x_train.mean().to_numpy(), x_train.std().to_numpy()
-mu_y,std_y = y_train.mean().to_numpy(), y_train.std().to_numpy()
+mu_x,std_x = np.mean(x_train,axis=0), np.std(x_train,axis=0)
+mu_y,std_y = np.mean(y_train,axis=0), np.std(y_train,axis=0)
+## normalise data
+#mu_x,std_x = x_train.mean().to_numpy(), x_train.std().to_numpy()
+#mu_y,std_y = y_train.mean().to_numpy(), y_train.std().to_numpy()
 x_train = (x_train - mu_x)/std_x
 x_test = (x_test - mu_x)/std_x
 y_train = (y_train - mu_y)/std_y
 y_test = (y_test - mu_y)/std_y
-x_train = x_train.iloc[:,:].values
-x_test = x_test.iloc[:,:].values
-y_train = y_train.iloc[:,:].values
-y_test = y_test.iloc[:,:].values
+#x_train = x_train.iloc[:,:].values
+#x_test = x_test.iloc[:,:].values
+#y_train = y_train.iloc[:,:].values
+#y_test = y_test.iloc[:,:].values
 y_d = y_train.shape[1]
 d_input = x_train.shape[1]
 
@@ -67,13 +78,15 @@ for k in range(rerun):
         'Y': y_train,
         'qd': 1,
         'max_depth': 100,
-        'max_samples': 550,
+        'max_samples': 1100,
         'log': True,
         'jump': True,
         'reduce_branching': True
     }
     root_region, gps_ = build_bins(**opts)
+    print("bins built")
     root, gps = structure(root_region,scope = [i for i in range(y_d)], gp_types=['matern1.5_ard'])
+    print("structure generated")
 
     # train GP experts with their own hyperparameters
     outer_LMM = np.zeros((len(gps),epoch))

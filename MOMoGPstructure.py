@@ -97,6 +97,8 @@ def build_bins(**kwargs):
     count = 0
     while len(to_process):
         node = to_process.pop()
+        ###
+        #print(node)
         if type(node) is Product:
             for i in range(len(node.children)):
                 node2 = node.children[i]
