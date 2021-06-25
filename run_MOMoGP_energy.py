@@ -64,7 +64,7 @@ d_input = x_train.shape[1]
 # hyperparameter settings
 lr = 0.1
 rerun = 1
-epoch =200
+epoch =150
 RMSEE=[]
 MAEE=[]
 NLPDD=[]
@@ -76,9 +76,9 @@ for k in range(rerun):
         'min_samples': 0,
         'X': x_train,
         'Y': y_train,
-        'qd': 1,
+        'qd': 3,
         'max_depth': 100,
-        'max_samples': 1100,
+        'max_samples': 5500,
         'log': True,
         'jump': True,
         'reduce_branching': True
