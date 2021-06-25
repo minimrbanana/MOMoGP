@@ -22,11 +22,13 @@ class Sum:
         self.scope=kwargs['scope']
         self.mll = []
         return None
-
+    
     def forward(self, x_pred, **kwargs):
         if len(self.children) == 1:
             r_ = self.children[0].forward(x_pred, **kwargs)
-            return r_[0],r_[1]
+            mu_x = r_[0]
+            co_x = r_[1]
+            #return r_[0],r_[1]
         elif len(self.children) == 2:
             _wei = np.array(self.weights).reshape((-1,1))
             c,a= self.children[0].forward(x_pred, **kwargs)
@@ -57,16 +59,17 @@ class Sum:
             co3 = np.matmul(e, e.transpose((0, 2, 1)))
             co_x = co1 + co2 - co3  # compute the covariance matrix of the mixture distribution
 
+        else:
+            raise NotImplementedError
+
         return mu_x, co_x
 
     def update(self):
         c_mllh = np.array([c.update() for c in self.children])
         lw = logsumexp(c_mllh)
         logweights = c_mllh - lw
-
         ## add a prior in case one child has too large a weight
         self.weights = np.exp(logweights) + np.ones(len(logweights)) * 0.5
-
         self.weights = self.weights / np.sum(self.weights)
 
         return lw
@@ -75,8 +78,8 @@ class Sum:
         if len(self.children)==2:
             a = torch.stack((torch.tensor(self.children[0].update_mll()),torch.tensor(self.children[1].update_mll())))
             w_log = torch.logsumexp(a,0)+torch.tensor(0.5)
+            
             return w_log
-
         else:
             raise NotImplementedError
 
@@ -112,7 +115,6 @@ class Split:
     def update(self):
         return np.sum([c.update() for c in self.children])
 
-
     def update_mll(self):
         sum = 0
         for c in self.children:
@@ -133,23 +135,17 @@ class Productt:
         mu_x = np.zeros((len(x_pred),1, y_d))
         co_x = np.zeros((len(x_pred), y_d,y_d ))
 
-
         if type(self.children[0]) is Sum:
             for i, child in enumerate(self.children):
                 mu_c, co_c= child.forward(x_pred, **kwargs)
                 mu_x += mu_c
                 co_x += co_c
-
             return mu_x, co_x
-
         elif type(self.children[0]) is GP:
             for i, child in enumerate(self.children):
                 mu_c, co_c= child.forward(x_pred, **kwargs)
                 mu_x[:,0, child.scope], co_x[:, child.scope, child.scope] = mu_c.squeeze(-1), co_c.squeeze(-1)
-
-
             return mu_x, co_x
-
 
     def update(self):
         return np.sum([c.update() for c in self.children])
@@ -168,7 +164,6 @@ class ExactGPModel(gpytorch.models.ExactGP):
         likelihood = dict.get(kwargs,'likelihood')
         gp_type = dict.get(kwargs,'type')
         xd = x.shape[1]
-
         active_dims = torch.tensor(list(range(xd)))
 
         super(ExactGPModel, self).__init__(x, y, likelihood)
@@ -206,7 +201,6 @@ class ExactGPModel(gpytorch.models.ExactGP):
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.sample()
         self.covar_module.outputscale = outputscale_prior.sample()
 
-
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
@@ -236,9 +230,7 @@ class GP:
     def update_mll(self):
         return self.mll_grad
 
-
     def predict1(self, X_s, **kwargs):
-
         device_ = torch.device("cuda")
         self.model = self.model.to(device_)
         self.model.eval()
@@ -255,56 +247,10 @@ class GP:
                 gc.collect()
         x.detach()
         del x
-
         torch.cuda.empty_cache()
-
-
         gc.collect()
 
         return pm_, pv_
-
-    def init3(self, **kwargs):
-        iter = dict.get(kwargs, 'iter', 0)
-        steps = dict.get(kwargs, 'steps', 0)
-        lr = dict.get(kwargs, 'lr', 0.1)
-        if iter == 0:
-            self.n = len(self.x)
-            self.cuda = dict.get(kwargs, 'cuda') and torch.cuda.is_available()
-            self.device = torch.device("cuda" if self.cuda else "cpu")
-            if self.cuda:
-                torch.cuda.empty_cache()
-            self.x = torch.from_numpy(self.x).float().to(self.device)
-            self.y = torch.from_numpy(self.y.ravel()).float().to(self.device)
-
-            self.likelihood = GaussianLikelihood()
-            self.likelihood.train()
-
-            self.model = ExactGPModel(x=self.x, y=self.y, likelihood=self.likelihood, type=self.type).to(
-            self.device)  # .cuda()
-
-            self.optimizer = Adam([{'params': self.model.parameters()}], lr=lr)
-            self.model.train()
-
-        mll = ExactMarginalLogLikelihood(self.likelihood, self.model)
-        self.optimizer.zero_grad()  # Zero gradients from previous iteration
-        output = self.model(self.x)  # Output from model
-        loss = -mll(output, self.y)
-
-        loss.backward()
-        self.optimizer.step()
-        # LOG LIKELIHOOD NOW POSITIVE
-        self.mll = -loss.detach().item()
-        self.loss = loss.detach().item()
-        if iter == steps-1:
-            self.x.detach()
-            self.y.detach()
-
-            del self.x
-            del self.y
-            self.x = self.y = None
-
-        torch.cuda.empty_cache()
-        gc.collect()
 
     def init(self, **kwargs):
         lr = dict.get(kwargs, 'lr', 0.2)
@@ -318,7 +264,6 @@ class GP:
 
         self.x = torch.from_numpy(self.x).float().to(self.device)
         self.y = torch.from_numpy(self.y.ravel()).float().to(self.device)
-
 
         self.likelihood = GaussianLikelihood()
         self.likelihood.train()
@@ -349,7 +294,6 @@ class GP:
         del self.y
         self.x = self.y = None
 
-
         self.model = self.model.to('cpu')
         torch.cuda.empty_cache()
         gc.collect()
@@ -365,7 +309,6 @@ def structure(root_region, scope,**kwargs):
     while len(to_process):
         gro, sto = to_process.pop()
         # sto = structure object
-
         if type(gro) is Mixture:
             for child in gro.children:
                 if type(child) is Separator:
@@ -422,4 +365,5 @@ def structure(root_region, scope,**kwargs):
                     raise Exception('1')
 
             to_process.extend(zip(gro.children, sto.children))
+
     return root, list(gps.values())

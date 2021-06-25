@@ -1,9 +1,14 @@
+"""
+Created on June 08, 2021
+@author: Zhongjie Yu
+@author: Mingye Zhu
+"""
 import numpy as np
 from collections import Counter
-from scipy.stats import beta, iqr
+#from scipy.stats import beta, iqr
 import random
-import sys
-import math
+#import sys
+#import math
 
 
 class Mixture:
@@ -65,16 +70,16 @@ def _cached_gp(cache, **kwargs):
 def query(X, mins, maxs, skipleft=False):
     mask, D = np.full(len(X), True), X.shape[1]
     for d_ in range(D):
-        if not skipleft:
-            mask = mask & (X[:, d_] >= mins[d_]) & (X[:, d_] <= maxs[d_])
+        if skipleft:
+            mask = mask & (X[:, d_] >= mins[d_]) & (X[:, d_] < maxs[d_])
         else:
             ## consider data at split points to either side or both sides according to the situation
             mask = mask & (X[:, d_] >= mins[d_]) & (X[:, d_] <= maxs[d_])
     return np.nonzero(mask)[0]
 
 
-def build_bins(**kwargs):
-    ## Construct MOMoGP
+def build_MOMoGP(**kwargs):
+    ## bulid the MOMoGP structure
     X = kwargs['X']
     Y = kwargs['Y']
     ddd = dict.get(kwargs, 'qd', 0)
@@ -97,8 +102,6 @@ def build_bins(**kwargs):
     count = 0
     while len(to_process):
         node = to_process.pop()
-        ###
-        #print(node)
         if type(node) is Product:
             for i in range(len(node.children)):
                 node2 = node.children[i]
@@ -115,11 +118,11 @@ def build_bins(**kwargs):
                     sum_children = [1, 2]
                     ## take quantiles as split points
                     quantiles = np.quantile(x_node, np.linspace(0, 1, num = ddd+2), axis=0).T
-                    d = [d, d2]
+                    # d = [d, d2]
+                    d = [d_selected[0],d_selected[1]]
                     m = 0
                     for split in sum_children:
-                        ## ignore duplicated split points
-                        u = np.unique(quantiles[d[m]])  
+                        u = np.unique(quantiles[d[m]])  ##ignore duplicated split points
 
                         ## put data into different split intervals
                         loop = []
@@ -134,19 +137,19 @@ def build_bins(**kwargs):
                             new_maxs[d[m]] = u[i + 1]
                             idx_i = query(x_node, new_mins, new_maxs, skipleft=skipleft)
                             if len(idx_i)==0:
-                                print("idx=0")
+                                print("empty children due to data")
                                 continue
                             loop.append(idx_i)
 
                         next_depth = node2.depth + 1
                         results = []
-                        
                         ##create next-layer nodes for current node
                         for idx in loop:
                             x_idx = x_node[idx]
                             maxs_loop = np.max(x_idx, axis=0)
                             mins_loop = np.min(x_idx, axis=0)
 
+                            # y_idx = y2[idx]
                             next_dimension = np.argsort(-np.var(x_idx, axis=0))[0]
                             if len(scope) == 1:
                                 if len(idx) < min_idx and len(idx)>0:
@@ -170,10 +173,11 @@ def build_bins(**kwargs):
                                         'n': len(idx),
                                         'scope': scope,
                                         'idx': x_idx,
+
+
                                     }
                                     results.append(Mixture(**mixture_opts))
                             else:
-                                ##random split into two parts
                                 a = int(len(scope) / 2)
                                 scope1 = random.sample(scope, a)
                                 scope2 = list(set(scope) - set(scope1))
@@ -185,7 +189,7 @@ def build_bins(**kwargs):
                                         'dimension': next_dimension,
                                         'n': len(idx),
                                         'scope': scope1,
-                                        'idx': x_idx
+                                        'idx': x_idx,
                                     }
                                     mixture_opts2 = {
                                         'mins': mins_loop,
@@ -194,7 +198,7 @@ def build_bins(**kwargs):
                                         'dimension': next_dimension,
                                         'n': len(idx),
                                         'scope': scope2,
-                                        'idx': x_idx
+                                        'idx': x_idx,
                                     }
                                     prod_opts = {
                                         'minsy': mins_loop,
@@ -202,6 +206,8 @@ def build_bins(**kwargs):
                                         'scope': scope1 + scope2,
                                         'children': [Mixture(**mixture_opts1), Mixture(**mixture_opts2)]
                                     }
+
+                                    prod = Product(**prod_opts)
                                     results.append(prod)
                                 else:
                                     gp = []
@@ -211,6 +217,8 @@ def build_bins(**kwargs):
                                         'scope': scope1+scope2,
                                         'children': gp,
                                     }
+
+                                    prod = Product(**prod_opts)
                                     for yi in prod.scope:
                                         a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
                                         gp.append(a)
@@ -218,7 +226,6 @@ def build_bins(**kwargs):
                                     results.append(prod)
 
                         if len(results) != 1:
-                            #print('n_splits',len(results))
                             to_process.extend(results)
                             separator_opts = {
                                 'depth': node2.depth,
@@ -247,9 +254,10 @@ def build_bins(**kwargs):
             d2 = d_selected[1]
             quantiles = np.quantile(x_node, np.linspace(0, 1, num = ddd+2),axis=0).T
             sum_children=[1,2]
-            d = [d, d2]
+            # d = [d, d2]
+            d = [d_selected[0], d_selected[1]]
             m = 0
-            y = node.y
+            # y = node.y
             for split in sum_children:
                 u = np.unique(quantiles[d[m]])
 
@@ -267,7 +275,7 @@ def build_bins(**kwargs):
                     new_maxs[d[m]] = u[i + 1]
                     idx_i = query(x_node, new_mins, new_maxs, skipleft=skipleft)
                     if len(idx_i)==0:
-                        print("idx=0")
+                        print("empty children due to data")
                         continue
                     loop.append(idx_i)
 
@@ -277,7 +285,7 @@ def build_bins(**kwargs):
                     x_idx = x_node[idx]
                     maxs_loop = np.max(x_idx,axis=0)
                     mins_loop = np.min(x_idx,axis=0)
-                    #y_idx = y[idx]
+                    # y_idx = y[idx]
                     next_dimension = np.argsort(-np.var(x_idx, axis=0))[0]
                     if len(scope) == 1:
                         if len(idx) < min_idx and len(idx) >0:
@@ -302,11 +310,11 @@ def build_bins(**kwargs):
                                 'n': len(idx),
                                 'scope': scope,
                                 'idx': x_idx,
+                                # 'y': y_idx
                             }
                             results.append(Mixture(**mixture_opts))
 
                     else:
-                        ## random split
                         a = int(len(scope) / 2)
                         scope1 = random.sample(scope, a)
                         scope2 = list(set(scope) - set(scope1))
@@ -318,7 +326,8 @@ def build_bins(**kwargs):
                                 'dimension': next_dimension,
                                 'n': len(idx),
                                 'scope': scope1,
-                                'idx': x_idx
+                                'idx': x_idx,
+                                # 'y': y_idx
                             }
                             mixture_opts2 = {
                                 'mins': mins_loop,
@@ -327,7 +336,8 @@ def build_bins(**kwargs):
                                 'dimension': next_dimension,
                                 'n': len(idx),
                                 'scope': scope2,
-                                'idx': x_idx
+                                'idx': x_idx,
+                                # 'y': y_idx
                             }
                             prod_opts = {
                                 'minsy': mins_loop,
@@ -335,7 +345,7 @@ def build_bins(**kwargs):
                                 'scope': scope1+scope2,
                                 'children': [Mixture(**mixture_opts1),Mixture(**mixture_opts2)]
                             }
-                       
+
                             prod = Product(**prod_opts)
                             results.append(prod)
                         else:
@@ -346,7 +356,7 @@ def build_bins(**kwargs):
                                 'scope': scope1+scope2,
                                 'children': gp,
                             }
-                       
+
                             prod = Product(**prod_opts)
                             for yi in prod.scope:
                                 a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
@@ -356,7 +366,6 @@ def build_bins(**kwargs):
 
 
                 if len(results) != 1:
-                    #print('n_splits', len(results))
                     to_process.extend(results)
                     separator_opts = {
                         'depth': node.depth,
@@ -377,8 +386,8 @@ def build_bins(**kwargs):
                 m += 1
 
     gps = list(cache.values())
-    aaa = [len(gp.idx) for gp in gps]
+    leaf_len = [len(gp.idx) for gp in gps]
 
-    print(f"Lengths:\t {aaa}\nSum:\t\t {sum(aaa)} (N={len(X)})")
+    print(f"Leaf observations:\t {leaf_len}\nSum:\t\t\t {sum(leaf_len)} (N={len(X)})")
 
     return root_node, gps
