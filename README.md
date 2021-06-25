@@ -15,6 +15,9 @@ This will clone the repo, install a python virtual env (requires pythn 3.6), the
 To illustrate the usage of the code:
 
     source ./venv_momogp/bin/activate
-    python run_MOMoGP.py
+    python run_MOMoGP.py --data=pakinsons
+
+"pakinsons" can be replaced with "scm20d" or "wind" or "energy" or "usflight".
+If not specified, the corresponding hyperparameters are set by default values.
 
 
