@@ -231,7 +231,7 @@ class GP:
         return self.mll_grad
 
     def predict1(self, X_s, **kwargs):
-        device_ = torch.device("cuda")
+        device_ = torch.device("cuda" if self.cuda else "cpu")
         self.model = self.model.to(device_)
         self.model.eval()
         self.likelihood.eval()

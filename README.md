@@ -25,6 +25,9 @@ To illustrate the usage of the code:
 ### Hyperparameters
 
 If not specified, the corresponding hyperparameters are set by default values.
+If train on CPU, use:
+
+    python run_MOMoGP.py --data=pakinsons --cpu
 
 ## Citation
 If you find this code useful in your research, please consider citing:

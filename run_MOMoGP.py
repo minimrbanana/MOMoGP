@@ -65,7 +65,7 @@ def train_MOMoGP(args):
             y_scope = y_train[:,gp.scope]
             gp.y = y_scope[idx]
             print(f"Training GP {i + 1}/{len(gps)} ({len(idx)})")
-            outer_LMM[i,:]= gp.init(cuda=True,lr = lr, steps=epoch,iter = i)
+            outer_LMM[i,:]= gp.init(cuda=args.cuda, lr = lr, steps=epoch,iter = i)
         root.update()
 
         # on test data
@@ -107,6 +107,9 @@ if __name__ == "__main__":
                         help='Number of splits in the covariate space')
     parser.add_argument('--epoch', type=int, default=None,
                         help='Number of epochs in GP leaf optimization')
+    parser.add_argument('--cuda', dest='cuda', action='store_true')
+    parser.add_argument('--cpu', dest='cuda', action='store_false')
+    parser.set_defaults(cuda=True)
     parser.add_argument('--rerun', type=int, default=1,
                         help='Rerun MOMoGP')
     # set args
