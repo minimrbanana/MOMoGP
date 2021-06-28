@@ -221,7 +221,6 @@ class GP:
 
     def forward(self, X_s, **kwargs):
 
-        #mu_gp, co_gp = self.predict(x_pred,**kwargs)
         device_ = torch.device("cuda" if self.cuda else "cpu")
         self.model = self.model.to(device_)
         self.model.eval()
@@ -242,37 +241,12 @@ class GP:
         gc.collect()
 
         return pm_, pv_
-        #return mu_gp, co_gp
 
     def update(self):
         return self.mll
 
     def update_mll(self):
         return self.mll_grad
-
-    """
-    def predict(self, X_s, **kwargs):
-        device_ = torch.device("cuda" if self.cuda else "cpu")
-        self.model = self.model.to(device_)
-        self.model.eval()
-        self.likelihood.eval()
-        x = torch.from_numpy(X_s).float().to(device_)
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
-                observed_pred = self.likelihood(self.model(x))
-                pm, pv = observed_pred.mean, observed_pred.variance
-                pm_ = pm.detach().cpu()
-                pv_ = pv.detach().cpu()
-                del observed_pred,pm,pv
-                del self.model
-                torch.cuda.empty_cache()
-                gc.collect()
-        x.detach()
-        del x
-        torch.cuda.empty_cache()
-        gc.collect()
-
-        return pm_, pv_
-    """
 
     def init(self, **kwargs):
         lr = dict.get(kwargs, 'lr', 0.2)
