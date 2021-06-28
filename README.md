@@ -41,7 +41,6 @@ If you find this code useful in your research, please consider citing:
     }
 
 ## Acknowledgments
-<img src="https://github.com/minimrbanana/MOMoGP/blob/main/figures/BMBF_Logo.png" height="100"/><img src="https://github.com/minimrbanana/MOMoGP/blob/main/figures/HMWK_Logo.jpg"  height="100"/>
 
 * This work is supported by the Federal Ministry of Education and Research (BMBF; project "MADESI", FKZ 01IS18043B, and Competence Center for AI and Labour; "kompAKI", FKZ 02L19C150), the Hessian Ministry of Higher Education, Research, Science and the Arts (HMWK; projects "The Third Wave of AI" and "The Adaptive Mind"), the Hessian research priority programme LOEWE within the project "WhiteBox", and the National Research Center for Applied Cybersecurity ATHENE, a joint effort of BMBF and HMWK. M.T. acknowledges funding from the Academy of Finland (grant number 324345).
 
