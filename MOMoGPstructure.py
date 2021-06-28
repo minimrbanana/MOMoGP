@@ -5,13 +5,10 @@ Created on June 08, 2021
 """
 import numpy as np
 from collections import Counter
-#from scipy.stats import beta, iqr
 import random
-#import sys
-#import math
 
 
-class Mixture:
+class Sum_:
     def __init__(self, **kwargs):
         self.maxs = kwargs['maxs']
         self.mins = kwargs['mins']
@@ -27,7 +24,7 @@ class Mixture:
         self.y = dict.get(kwargs, 'y', [])
 
 
-class Separator:
+class Product_x_:
     def __init__(self, **kwargs):
         self.split = kwargs['split']
         self.splits = kwargs['splits']
@@ -39,7 +36,7 @@ class Separator:
         self.mins = kwargs['mins']
 
 
-class Product:
+class Product_y_:
     def __init__(self, **kwargs):
         self.children = kwargs['children']
         self.maxs = kwargs['maxsy']
@@ -97,16 +94,16 @@ def build_MOMoGP(**kwargs):
     }
 
     nsplits = Counter()
-    root_node = Mixture(**root_mixture_opts)
+    root_node = Sum_(**root_mixture_opts)
     to_process, cache = [root_node], dict()
     count = 0
     while len(to_process):
         node = to_process.pop()
-        if type(node) is Product:
+        if type(node) is Product_y_:
             for i in range(len(node.children)):
                 node2 = node.children[i]
 
-                if type(node2) is Mixture :
+                if type(node2) is Sum_ :
                     d = node2.dimension
                     x_node = node2.idx
                     scope2 = node2.scope
@@ -160,7 +157,7 @@ def build_MOMoGP(**kwargs):
                                         'scope': scope,
                                         'children': gp,
                                     }
-                                    prod = Product(**prod_opts)
+                                    prod = Product_y_(**prod_opts)
                                     a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=scope[0], parent=None)
                                     gp.append(a)
                                     results.append(prod)
@@ -176,7 +173,7 @@ def build_MOMoGP(**kwargs):
 
 
                                     }
-                                    results.append(Mixture(**mixture_opts))
+                                    results.append(Sum_(**mixture_opts))
                             else:
                                 a = int(len(scope) / 2)
                                 scope1 = random.sample(scope, a)
@@ -204,10 +201,10 @@ def build_MOMoGP(**kwargs):
                                         'minsy': mins_loop,
                                         'maxsy': maxs_loop,
                                         'scope': scope1 + scope2,
-                                        'children': [Mixture(**mixture_opts1), Mixture(**mixture_opts2)]
+                                        'children': [Sum_(**mixture_opts1), Sum_(**mixture_opts2)]
                                     }
 
-                                    prod = Product(**prod_opts)
+                                    prod = Product_y_(**prod_opts)
                                     results.append(prod)
                                 else:
                                     gp = []
@@ -218,7 +215,7 @@ def build_MOMoGP(**kwargs):
                                         'children': gp,
                                     }
 
-                                    prod = Product(**prod_opts)
+                                    prod = Product_y_(**prod_opts)
                                     for yi in prod.scope:
                                         a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
                                         gp.append(a)
@@ -237,7 +234,7 @@ def build_MOMoGP(**kwargs):
                                 'parent': None,
                                 'splits':u
                             }
-                            node2.children.append(Separator(**separator_opts))
+                            node2.children.append(Product_x_(**separator_opts))
                         elif len(results) == 1:
                             node2.children.extend(results)
                             to_process.extend(results)
@@ -245,7 +242,7 @@ def build_MOMoGP(**kwargs):
                             raise Exception('1')
                         m += 1
 
-        elif type(node) is Mixture:
+        elif type(node) is Sum_:
             d = node.dimension
             x_node = node.idx
             mins_node, maxs_node = np.min(x_node, 0), np.max(x_node, 0)
@@ -297,7 +294,7 @@ def build_MOMoGP(**kwargs):
                                 'children': gp,
                             }
 
-                            prod = Product(**prod_opts)
+                            prod = Product_y_(**prod_opts)
                             a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=scope[0], parent=None)
                             gp.append(a)
                             results.append(prod)
@@ -312,7 +309,7 @@ def build_MOMoGP(**kwargs):
                                 'idx': x_idx,
                                 # 'y': y_idx
                             }
-                            results.append(Mixture(**mixture_opts))
+                            results.append(Sum_(**mixture_opts))
 
                     else:
                         a = int(len(scope) / 2)
@@ -343,10 +340,10 @@ def build_MOMoGP(**kwargs):
                                 'minsy': mins_loop,
                                 'maxsy': maxs_loop,
                                 'scope': scope1+scope2,
-                                'children': [Mixture(**mixture_opts1),Mixture(**mixture_opts2)]
+                                'children': [Sum_(**mixture_opts1),Sum_(**mixture_opts2)]
                             }
 
-                            prod = Product(**prod_opts)
+                            prod = Product_y_(**prod_opts)
                             results.append(prod)
                         else:
                             gp = []
@@ -357,7 +354,7 @@ def build_MOMoGP(**kwargs):
                                 'children': gp,
                             }
 
-                            prod = Product(**prod_opts)
+                            prod = Product_y_(**prod_opts)
                             for yi in prod.scope:
                                 a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
                                 gp.append(a)
@@ -377,7 +374,7 @@ def build_MOMoGP(**kwargs):
                         'parent': None,
                         'splits':u
                     }
-                    node.children.append(Separator(**separator_opts))
+                    node.children.append(Product_x_(**separator_opts))
                 elif len(results) == 1:
                     node.children.extend(results)
                     to_process.extend(results)

@@ -4,7 +4,7 @@ Created on June 08, 2021
 @author: Mingye Zhu
 """
 import numpy as np
-from MOMoGPstructure import Mixture, Separator, GPMixture, Product
+from MOMoGPstructure import Sum_, Product_x_, GPMixture, Product_y_
 import gc
 import torch
 import gpytorch
@@ -84,7 +84,7 @@ class Sum:
             raise NotImplementedError
 
 
-class Split:
+class Product_x:
     def __init__(self, **kwargs):
         self.children = []
         self.split = kwargs['split']
@@ -123,7 +123,7 @@ class Split:
         return sum
 
 
-class Productt:
+class Product_y:
     def __init__(self, **kwargs):
         self.children = []
         self.scope = kwargs['scope']
@@ -219,18 +219,9 @@ class GP:
         self.y = dict.get(kwargs, 'y', [])
         self.count = kwargs['count']
 
-    def forward(self, x_pred, **kwargs):
+    def forward(self, X_s, **kwargs):
 
-        mu_gp, co_gp = self.predict1(x_pred,**kwargs)
-        return mu_gp, co_gp
-
-    def update(self):
-        return self.mll
-
-    def update_mll(self):
-        return self.mll_grad
-
-    def predict1(self, X_s, **kwargs):
+        #mu_gp, co_gp = self.predict(x_pred,**kwargs)
         device_ = torch.device("cuda" if self.cuda else "cpu")
         self.model = self.model.to(device_)
         self.model.eval()
@@ -251,6 +242,37 @@ class GP:
         gc.collect()
 
         return pm_, pv_
+        #return mu_gp, co_gp
+
+    def update(self):
+        return self.mll
+
+    def update_mll(self):
+        return self.mll_grad
+
+    """
+    def predict(self, X_s, **kwargs):
+        device_ = torch.device("cuda" if self.cuda else "cpu")
+        self.model = self.model.to(device_)
+        self.model.eval()
+        self.likelihood.eval()
+        x = torch.from_numpy(X_s).float().to(device_)
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+                observed_pred = self.likelihood(self.model(x))
+                pm, pv = observed_pred.mean, observed_pred.variance
+                pm_ = pm.detach().cpu()
+                pv_ = pv.detach().cpu()
+                del observed_pred,pm,pv
+                del self.model
+                torch.cuda.empty_cache()
+                gc.collect()
+        x.detach()
+        del x
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        return pm_, pv_
+    """
 
     def init(self, **kwargs):
         lr = dict.get(kwargs, 'lr', 0.2)
@@ -309,33 +331,33 @@ def structure(root_region, scope,**kwargs):
     while len(to_process):
         gro, sto = to_process.pop()
         # sto = structure object
-        if type(gro) is Mixture:
+        if type(gro) is Sum_:
             for child in gro.children:
-                if type(child) is Separator:
-                    _child = Split(split=child.split, depth=child.depth, dimension=child.dimension,splits=child.splits)
+                if type(child) is Product_x_:
+                    _child = Product_x(split=child.split, depth=child.depth, dimension=child.dimension,splits=child.splits)
                     sto.children.append(_child)
                     _cn = len(sto.children)
                     sto.weights = np.ones(_cn) / _cn
-                elif type(child) is Product:
+                elif type(child) is Product_y_:
                     scope = child.scope
-                    _child = Productt(scope = scope)
+                    _child = Product_y(scope = scope)
                     sto.children.append(_child)
                 else:
                     print(type(child))
                     raise Exception('1')
             to_process.extend(zip(gro.children, sto.children))
-        elif type(gro) is Separator: # sto is Split
+        elif type(gro) is Product_x_: # sto is Product_x
             for child in gro.children:
-                if type(child) is Product:
+                if type(child) is Product_y_:
                     scope = child.scope
-                    _child = Productt(scope = scope)
+                    _child = Product_y(scope = scope)
                     sto.children.append(_child)
-                elif type(child) is Mixture:
+                elif type(child) is Sum_:
                     scope = child.scope
                     _child = Sum(scope=scope)
                     sto.children.append(_child)
-                elif type(child) is Separator:
-                    _child = Split(split=child.split, depth=child.depth, dimension=child.dimension,splits=child.splits)
+                elif type(child) is Product_x_:
+                    _child = Product_x(split=child.split, depth=child.depth, dimension=child.dimension,splits=child.splits)
                     sto.children.append(_child)
                     _cn = len(sto.children)
                     sto.weights = np.ones(_cn) / _cn
@@ -344,10 +366,10 @@ def structure(root_region, scope,**kwargs):
 
             to_process.extend(zip(gro.children, sto.children))
 
-        elif type(gro) is Product:
+        elif type(gro) is Product_y_:
             i = 0
             for child in gro.children:
-                if type(child) is Mixture:
+                if type(child) is Sum_:
                     scope = child.scope
                     _child = Sum(scope = scope)
                     sto.children.append(_child)

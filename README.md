@@ -8,7 +8,7 @@ This is the official repository for MOMoGP introduced in
 
 ## Setup
 
-This will clone the repo, install a python virtual env (requires pythn 3.6), the required packages, and will download some datasets.
+This will clone the repo, install a Python virtual env (requires Python 3.6), the required packages, and will download some datasets.
 
     git clone https://github.com/minimrbanana/MOMoGP
     ./setup.sh
