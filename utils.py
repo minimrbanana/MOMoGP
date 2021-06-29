@@ -7,7 +7,9 @@ import numpy as np
 
 
 def calc_rmse(y_pred, y):
-    # calculate RMSE for MOMoGP
+    """Calculate RMSE for MOMoGP.
+    Details in Sec. 5.2 Equation (15)
+    """
     RMSE = 0
     y_d = y.shape[1]
     for k in range(y_d):
@@ -20,7 +22,9 @@ def calc_rmse(y_pred, y):
 
 
 def calc_mae(y_pred, y):
-    # calculate MAE for MOMoGP
+    """Calculate MAE for MOMoGP.
+    Details in Sec. 5.2 Equation (16)
+    """
     MAE = 0
     y_d = y.shape[1]
     for k in range(y_d):
@@ -33,7 +37,9 @@ def calc_mae(y_pred, y):
 
 
 def calc_nlpd(y_pred, y_cov, y):
-    # calculate NLPD for MOMoGP
+    """Calculate NLPD for MOMoGP.
+    Details in Sec. 5.2 Equation (17)
+    """
     NLPD = 0
     y_d = y.shape[1]
     count = 0

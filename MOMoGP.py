@@ -16,6 +16,8 @@ from scipy.special import logsumexp
 
 
 class Sum:
+    """This class defines the inference of a Sum node.
+    """
     def __init__(self, **kwargs):
         self.children = []
         self.weights = []
@@ -24,39 +26,45 @@ class Sum:
         return None
     
     def forward(self, x_pred, **kwargs):
+        """Propagation of the mean and covariance matrix for a Sum node.
+        Details can be found in Sec. 4.5, equation (10) and (11).
+        """
         if len(self.children) == 1:
             r_ = self.children[0].forward(x_pred, **kwargs)
             mu_x = r_[0]
             co_x = r_[1]
-            #return r_[0],r_[1]
         elif len(self.children) == 2:
-            _wei = np.array(self.weights).reshape((-1,1))
-            c,a= self.children[0].forward(x_pred, **kwargs)
-            d,b = self.children[1].forward(x_pred, **kwargs)
-            mu_x = c*self.weights[0]+d*self.weights[1]
-            co1=a*self.weights[0]+b*self.weights[1]
-            t3 = np.matmul(c,c.transpose((0,2,1)))
-            t6 = np.matmul(d,d.transpose((0,2,1)))
-            co2 = t3*self.weights[0]+t6*self.weights[1]
-            e = c*self.weights[0]+d*self.weights[1]
-            co3 = np.matmul(e,e.transpose((0,2,1)))
+            # eq (10)
+            mu_0, cov_0 = self.children[0].forward(x_pred, **kwargs)
+            mu_1, cov_1 = self.children[1].forward(x_pred, **kwargs)
+            mu_x = mu_0 * self.weights[0] + mu_1 * self.weights[1]
+            # 1st term in eq (11)
+            co1 = cov_0 * self.weights[0] + cov_1 * self.weights[1]
+            mu_00 = np.matmul(mu_0, mu_0.transpose((0,2,1)))
+            mu_11 = np.matmul(mu_1, mu_1.transpose((0,2,1)))
+            # 2nd term in eq (11)
+            co2 = mu_00 * self.weights[0] + mu_11 * self.weights[1]
+            # 3rd term in eq (11)
+            co3 = np.matmul(mu_x, mu_x.transpose((0,2,1)))
             co_x = co1+co2-co3 # compute the covariance matrix of the mixture distribution
 
         elif len(self.children)==4:
-            _wei = np.array(self.weights).reshape((-1, 1))
-            c, a = self.children[0].forward(x_pred, **kwargs)
-            d, b = self.children[1].forward(x_pred, **kwargs)
-            m3, c3 = self.children[2].forward(x_pred, **kwargs)
-            m4, c4 = self.children[3].forward(x_pred, **kwargs)
-            mu_x = c * self.weights[0] + d * self.weights[1]+m3*self.weights[2]+m4*self.weights[3]
-            co1 = a * self.weights[0] + b * self.weights[1]+c3*self.weights[2]+c4*self.weights[3]
-            t3 = np.matmul(c, c.transpose((0, 2, 1)))
-            t6 = np.matmul(d, d.transpose((0, 2, 1)))
-            t4 = np.matmul(m3, m3.transpose((0, 2, 1)))
-            t7 = np.matmul(m4, m4.transpose((0, 2, 1)))
-            co2 = t3 * self.weights[0] + t6 * self.weights[1]+t4*self.weights[2]+t7*self.weights[3]
-            e = c * self.weights[0] + d * self.weights[1]+m3*self.weights[2]+m4*self.weights[3]
-            co3 = np.matmul(e, e.transpose((0, 2, 1)))
+            # eq (10)
+            mu_0, cov_0 = self.children[0].forward(x_pred, **kwargs)
+            mu_1, cov_1 = self.children[1].forward(x_pred, **kwargs)
+            mu_2, cov_2 = self.children[2].forward(x_pred, **kwargs)
+            mu_3, cov_3 = self.children[3].forward(x_pred, **kwargs)
+            mu_x = mu_0 * self.weights[0] + mu_1 * self.weights[1] + mu_2 * self.weights[2] + mu_3 * self.weights[3]
+            # 1st term in eq (11)
+            co1 = cov_0 * self.weights[0] + cov_1 * self.weights[1] + cov_2 * self.weights[2] + cov_3 * self.weights[3]
+            mu_00 = np.matmul(mu_0, mu_0.transpose((0,2,1)))
+            mu_11 = np.matmul(mu_1, mu_1.transpose((0,2,1)))
+            mu_22 = np.matmul(mu_2, mu_2.transpose((0,2,1)))
+            mu_33 = np.matmul(mu_3, mu_3.transpose((0,2,1)))
+            # 2nd term in eq (11)
+            co2 = mu_00 * self.weights[0] + mu_11 * self.weights[1] + mu_22 * self.weights[2] + mu_33 * self.weights[3]
+            # 3rd term in eq (11)
+            co3 = np.matmul(mu_x, mu_x.transpose((0, 2, 1)))
             co_x = co1 + co2 - co3  # compute the covariance matrix of the mixture distribution
 
         else:
@@ -85,6 +93,8 @@ class Sum:
 
 
 class Product_x:
+    """This class defines the inference of a Product node of covariate space.
+    """
     def __init__(self, **kwargs):
         self.children = []
         self.split = kwargs['split']
@@ -94,6 +104,9 @@ class Product_x:
         return None
 
     def forward(self, x_pred, **kwargs):
+        """Propagation of the mean and covariance matrix for a Product node of covariate space.
+        Details can be found in Sec. 4.5.
+        """
         y_d = dict.get(kwargs, 'y_d', 0)
         mu_x = np.zeros((len(x_pred),1, y_d))
         co_x = np.zeros((len(x_pred), y_d,y_d))
@@ -124,6 +137,8 @@ class Product_x:
 
 
 class Product_y:
+    """This class defines the inference of a Product node of the output space.
+    """
     def __init__(self, **kwargs):
         self.children = []
         self.scope = kwargs['scope']
@@ -131,6 +146,9 @@ class Product_y:
         return None
 
     def forward(self, x_pred, **kwargs):
+        """Propagation of the mean and covariance matrix for a Product node of output space.
+        Details can be found in Sec. 4.5, equation (8) and (9).
+        """
         y_d = dict.get(kwargs, 'y_d', 0)
         mu_x = np.zeros((len(x_pred),1, y_d))
         co_x = np.zeros((len(x_pred), y_d,y_d ))
@@ -158,6 +176,10 @@ class Product_y:
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
+    """This class defines an exact GP model.
+    Details can be found in GPyTorch library.
+    https://docs.gpytorch.ai/en/v1.4.2/examples/01_Exact_GPs/Simple_GP_Regression.html
+    """
     def __init__(self, **kwargs):
         x = dict.get(kwargs,'x')
         y = dict.get(kwargs,'y')
@@ -208,6 +230,8 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class GP:
+    """This class defines the inference of a Leaf node.
+    """
     def __init__(self, **kwargs):
         self.type = kwargs['type']
         self.mins = kwargs['mins']
@@ -219,13 +243,27 @@ class GP:
         self.y = dict.get(kwargs, 'y', [])
         self.count = kwargs['count']
 
-    def forward(self, X_s, **kwargs):
+    def forward(self, x_pred, **kwargs):
+        """Compute the mean and covariance matrix of a multivariate Gaussian distribution
+        from a GP Leaf.
 
+        Parameters
+        ----------
+        x_pred
+            Test data.
+
+        Returns
+        -------
+        pm_
+            The mean.
+        pv_ 
+            The covariance matrix.
+        """
         device_ = torch.device("cuda" if self.cuda else "cpu")
         self.model = self.model.to(device_)
         self.model.eval()
         self.likelihood.eval()
-        x = torch.from_numpy(X_s).float().to(device_)
+        x = torch.from_numpy(x_pred).float().to(device_)
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
                 observed_pred = self.likelihood(self.model(x))
                 pm, pv = observed_pred.mean, observed_pred.variance
@@ -264,7 +302,7 @@ class GP:
         self.likelihood = GaussianLikelihood()
         self.likelihood.train()
         self.model = ExactGPModel(x=self.x, y=self.y, likelihood=self.likelihood, type='matern1.5_ard').to(
-        self.device)  # .cuda()
+        self.device)
         self.optimizer = Adam([{'params': self.model.parameters()}], lr=lr)
         self.model.train()
         mll = ExactMarginalLogLikelihood(self.likelihood, self.model)
@@ -296,7 +334,24 @@ class GP:
         return iner_LMM
 
 
-def structure(root_region, scope,**kwargs):
+def structure(root_region, scope, **kwargs):
+    """This function constructs the MOMoGP with inference routine.
+    Parameters
+    ----------
+    root_region
+        The root node from structure learning.
+    scope
+        List of scopes of the output space.
+    gp_types
+        Defines the GP leaf type.
+
+    Returns
+    -------
+    root
+        The root node.
+    list(gps.values())
+        The list of GP leaves.
+    """
     count=0
     root = Sum(scope=scope)
     to_process, gps = [(root_region, root)], dict()

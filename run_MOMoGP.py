@@ -20,6 +20,13 @@ torch.cuda.manual_seed(23)
 
 
 def train_MOMoGP(args):
+    """Train MOMoGP with given args.
+    
+    Parameters
+    ----------
+    args
+        Argument list.
+    """
     # load data
     print("Train MOMoGP on", args.data)
     x_train, x_test, y_train, y_test, args = load_data(args)

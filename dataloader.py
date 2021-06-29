@@ -12,7 +12,26 @@ random.seed(23)
 np.random.seed(23)
 
 def load_data(args):
-    # load data from given dataset name
+    """Load data from the given dataset name.
+
+    Parameters
+    ----------
+    args
+        Argument list.
+
+    Returns
+    -------
+    x_train
+        Input training data after normalisation.
+    x_test
+        Input test data after normalisation.
+    y_train
+        Output training data after normalisation.
+    y_test
+        Output test data after normalisation.
+    args
+        Argument list assigned with default hyperparameters.
+    """
     if args.data=="pakinsons":
         x_train = pd.read_csv('./data/Parkinsons/x_train.csv')
         x_test = pd.read_csv('./data/Parkinsons/x_test.csv')

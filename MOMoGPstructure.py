@@ -76,7 +76,26 @@ def query(X, mins, maxs, skipleft=False):
 
 
 def build_MOMoGP(**kwargs):
-    ## bulid the MOMoGP structure
+    """Bulid the MOMoGP structure.
+    This function creates the MOMoGP structure
+    based on Algorithm 1 and Figure 2.
+
+    Parameters
+    ----------
+    **kwargs
+        Arbitrary keyword arguments.
+        X:            Training data from covariate space in R^D.
+        Y:            Training data from output space in R^P.
+        qd:           Quantiles to split the covariate space, qd = Kpx-1.
+        max_samples:  The threshold M described in paper.
+
+    Returns
+    -------
+    root_node
+        The root node of MOMoGP.
+    gps
+        The list of GPs.
+    """
     X = kwargs['X']
     Y = kwargs['Y']
     ddd = dict.get(kwargs, 'qd', 0)
@@ -99,10 +118,12 @@ def build_MOMoGP(**kwargs):
     count = 0
     while len(to_process):
         node = to_process.pop()
+        # try to create children of a Product node for output space
         if type(node) is Product_y_:
             for i in range(len(node.children)):
                 node2 = node.children[i]
 
+                # the children of a Product node for output space should be Sum nodes or Leaf nodes
                 if type(node2) is Sum_ :
                     d = node2.dimension
                     x_node = node2.idx
@@ -115,12 +136,10 @@ def build_MOMoGP(**kwargs):
                     sum_children = [1, 2]
                     ## take quantiles as split points
                     quantiles = np.quantile(x_node, np.linspace(0, 1, num = ddd+2), axis=0).T
-                    # d = [d, d2]
                     d = [d_selected[0],d_selected[1]]
                     m = 0
                     for split in sum_children:
                         u = np.unique(quantiles[d[m]])  ##ignore duplicated split points
-
                         ## put data into different split intervals
                         loop = []
                         if len(u) == 1:
@@ -137,7 +156,6 @@ def build_MOMoGP(**kwargs):
                                 print("empty children due to data")
                                 continue
                             loop.append(idx_i)
-
                         next_depth = node2.depth + 1
                         results = []
                         ##create next-layer nodes for current node
@@ -145,10 +163,10 @@ def build_MOMoGP(**kwargs):
                             x_idx = x_node[idx]
                             maxs_loop = np.max(x_idx, axis=0)
                             mins_loop = np.min(x_idx, axis=0)
-
-                            # y_idx = y2[idx]
                             next_dimension = np.argsort(-np.var(x_idx, axis=0))[0]
+                            # if univariate output, check threshold M
                             if len(scope) == 1:
+                                # if #data smaller than M, create factorization of output
                                 if len(idx) < min_idx and len(idx)>0:
                                     gp = []
                                     prod_opts = {
@@ -161,6 +179,7 @@ def build_MOMoGP(**kwargs):
                                     a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=scope[0], parent=None)
                                     gp.append(a)
                                     results.append(prod)
+                                # if #data larger than M, create a Sum node and continue splitting
                                 else:
                                     mixture_opts = {
                                         'mins': mins_loop,
@@ -170,14 +189,14 @@ def build_MOMoGP(**kwargs):
                                         'n': len(idx),
                                         'scope': scope,
                                         'idx': x_idx,
-
-
                                     }
                                     results.append(Sum_(**mixture_opts))
+                            # if multivariate output, randomly split the output dimensions
                             else:
                                 a = int(len(scope) / 2)
                                 scope1 = random.sample(scope, a)
                                 scope2 = list(set(scope) - set(scope1))
+                                # if #data smaller than M
                                 if len(idx) >= min_idx:
                                     mixture_opts1 = {
                                         'mins': mins_loop,
@@ -203,9 +222,9 @@ def build_MOMoGP(**kwargs):
                                         'scope': scope1 + scope2,
                                         'children': [Sum_(**mixture_opts1), Sum_(**mixture_opts2)]
                                     }
-
                                     prod = Product_y_(**prod_opts)
                                     results.append(prod)
+                                # if #data larger than M
                                 else:
                                     gp = []
                                     prod_opts = {
@@ -214,14 +233,13 @@ def build_MOMoGP(**kwargs):
                                         'scope': scope1+scope2,
                                         'children': gp,
                                     }
-
                                     prod = Product_y_(**prod_opts)
                                     for yi in prod.scope:
                                         a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
                                         gp.append(a)
                                         count += 1
                                     results.append(prod)
-
+                        # if there is still Sum or Product node in the list to split
                         if len(results) != 1:
                             to_process.extend(results)
                             separator_opts = {
@@ -235,14 +253,13 @@ def build_MOMoGP(**kwargs):
                                 'splits':u
                             }
                             node2.children.append(Product_x_(**separator_opts))
-                        elif len(results) == 1:
+                        else:
                             node2.children.extend(results)
                             to_process.extend(results)
-                        else:
-                            raise Exception('1')
                         m += 1
-
+        # try to create children of a Sum node 
         elif type(node) is Sum_:
+            # first find out the two dimensions with largest variance in covariate space
             d = node.dimension
             x_node = node.idx
             mins_node, maxs_node = np.min(x_node, 0), np.max(x_node, 0)
@@ -251,23 +268,18 @@ def build_MOMoGP(**kwargs):
             d2 = d_selected[1]
             quantiles = np.quantile(x_node, np.linspace(0, 1, num = ddd+2),axis=0).T
             sum_children=[1,2]
-            # d = [d, d2]
             d = [d_selected[0], d_selected[1]]
             m = 0
-            # y = node.y
             for split in sum_children:
                 u = np.unique(quantiles[d[m]])
-
                 loop = []
                 if len(u) == 1:
                     loop.append(x_node)
-
                 for i in range(len(u)-1):
                     new_maxs, new_mins = maxs_node.copy(), mins_node.copy()
                     skipleft = True
                     if i == 0:
                         skipleft = False
-
                     new_mins[d[m]] = u[i]
                     new_maxs[d[m]] = u[i + 1]
                     idx_i = query(x_node, new_mins, new_maxs, skipleft=skipleft)
@@ -275,16 +287,16 @@ def build_MOMoGP(**kwargs):
                         print("empty children due to data")
                         continue
                     loop.append(idx_i)
-
                 next_depth = node.depth + 1
                 results = []
                 for idx in loop:
                     x_idx = x_node[idx]
                     maxs_loop = np.max(x_idx,axis=0)
                     mins_loop = np.min(x_idx,axis=0)
-                    # y_idx = y[idx]
                     next_dimension = np.argsort(-np.var(x_idx, axis=0))[0]
+                    # if univariate output, check threshold M 
                     if len(scope) == 1:
+                        # if #data smaller than M, create factorization of output
                         if len(idx) < min_idx and len(idx) >0:
                             gp = []
                             prod_opts = {
@@ -293,11 +305,11 @@ def build_MOMoGP(**kwargs):
                                 'scope': scope,
                                 'children': gp,
                             }
-
                             prod = Product_y_(**prod_opts)
                             a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=scope[0], parent=None)
                             gp.append(a)
                             results.append(prod)
+                        # if #data larger than M, create a Sum node and continue splitting
                         else:
                             mixture_opts = {
                                 'mins': mins_loop,
@@ -307,14 +319,14 @@ def build_MOMoGP(**kwargs):
                                 'n': len(idx),
                                 'scope': scope,
                                 'idx': x_idx,
-                                # 'y': y_idx
                             }
                             results.append(Sum_(**mixture_opts))
-
+                    # if multivariate output, randomly split the output dimensions
                     else:
                         a = int(len(scope) / 2)
                         scope1 = random.sample(scope, a)
                         scope2 = list(set(scope) - set(scope1))
+                        # if #data smaller than M 
                         if len(idx) >= min_idx:
                             mixture_opts1 = {
                                 'mins': mins_loop,
@@ -324,7 +336,6 @@ def build_MOMoGP(**kwargs):
                                 'n': len(idx),
                                 'scope': scope1,
                                 'idx': x_idx,
-                                # 'y': y_idx
                             }
                             mixture_opts2 = {
                                 'mins': mins_loop,
@@ -334,7 +345,6 @@ def build_MOMoGP(**kwargs):
                                 'n': len(idx),
                                 'scope': scope2,
                                 'idx': x_idx,
-                                # 'y': y_idx
                             }
                             prod_opts = {
                                 'minsy': mins_loop,
@@ -342,9 +352,9 @@ def build_MOMoGP(**kwargs):
                                 'scope': scope1+scope2,
                                 'children': [Sum_(**mixture_opts1),Sum_(**mixture_opts2)]
                             }
-
                             prod = Product_y_(**prod_opts)
                             results.append(prod)
+                        # if #data larger than M
                         else:
                             gp = []
                             prod_opts = {
@@ -353,7 +363,6 @@ def build_MOMoGP(**kwargs):
                                 'scope': scope1+scope2,
                                 'children': gp,
                             }
-
                             prod = Product_y_(**prod_opts)
                             for yi in prod.scope:
                                 a = _cached_gp(cache, mins=mins_loop, maxs=maxs_loop, idx=idx, y=yi, parent=None)
@@ -361,7 +370,7 @@ def build_MOMoGP(**kwargs):
                                 count+=1
                             results.append(prod)
 
-
+                # if there is still Sum or Product node in the list to split 
                 if len(results) != 1:
                     to_process.extend(results)
                     separator_opts = {
@@ -375,11 +384,9 @@ def build_MOMoGP(**kwargs):
                         'splits':u
                     }
                     node.children.append(Product_x_(**separator_opts))
-                elif len(results) == 1:
+                else:
                     node.children.extend(results)
                     to_process.extend(results)
-                else:
-                    raise Exception('1')
                 m += 1
 
     gps = list(cache.values())
