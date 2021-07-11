@@ -18,16 +18,16 @@ This will clone the repo, install a Python virtual env (requires Python 3.6), th
 To illustrate the usage of the code:
 
     source ./venv_momogp/bin/activate
-    python run_MOMoGP.py --data=pakinsons
+    python run_MOMoGP.py --data=parkinsons
 
-"pakinsons" can be replaced with "scm20d" or "wind" or "energy" or "usflight".
+"parkinsons" can be replaced with "scm20d" or "wind" or "energy" or "usflight".
 
 ### Hyperparameters
 
 If not specified, the corresponding hyperparameters are set by default values.
 If train on CPU, use:
 
-    python run_MOMoGP.py --data=pakinsons --cpu
+    python run_MOMoGP.py --data=parkinsons --cpu
 
 ## Citation
 If you find this code useful in your research, please consider citing:

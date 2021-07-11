@@ -32,7 +32,7 @@ def load_data(args):
     args
         Argument list assigned with default hyperparameters.
     """
-    if args.data=="pakinsons":
+    if args.data=="parkinsons":
         x_train = pd.read_csv('./data/Parkinsons/x_train.csv')
         x_test = pd.read_csv('./data/Parkinsons/x_test.csv')
         y_train = pd.read_csv('./data/Parkinsons/y_train.csv')
