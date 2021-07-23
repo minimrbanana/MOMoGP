@@ -29,7 +29,7 @@ def train_MOMoGP(args):
     """
     # load data
     print("Train MOMoGP on", args.data)
-    x_train, x_test, y_train, y_test, args = load_data(args)
+    x_train, x_test, y_train, y_test, args=load_data(args)
     D = x_train.shape[1] # input dimensions
     P = y_train.shape[1] # output dimensions
 
@@ -72,11 +72,11 @@ def train_MOMoGP(args):
             y_scope = y_train[:,gp.scope]
             gp.y = y_scope[idx]
             print(f"Training GP {i + 1}/{len(gps)} ({len(idx)})")
-            outer_LMM[i,:]= gp.init(cuda=args.cuda, lr = lr, steps=epoch,iter = i)
+            outer_LMM[i,:]= gp.init(cuda=args.cuda, lr=lr, steps=epoch, iter=i)
         root.update()
 
         # on test data
-        mu, cov= root.forward(x_test[:,:], smudge=0,y_d = P)
+        mu, cov= root.forward(x_test[:,:], y_d=P)
 
         # evaluate RMSE, MAE and NLPD
         RMSE = calc_rmse(mu, y_test)
